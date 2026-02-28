@@ -1,0 +1,46 @@
+# eToro CLI Configuration
+# Copy this file to etoro.yaml or ~/.etoro/config.yaml
+
+# eToro API credentials
+# Get your API keys from eToro developer portal
+etoro:
+  public_key: ""          # Your eToro public API key
+  user_key: ""            # Your eToro user API key
+  base_url: "https://api.etoro.com"  # API base URL
+
+# Trading settings and safety guardrails
+trading:
+  # SAFETY: Set to true to enable actual trade execution
+  # When false, all trading commands show dry-run previews only
+  execution_enabled: false
+
+  # SAFETY: Emergency stop - blocks ALL trading operations when true
+  # Set to false only when you're ready to trade
+  kill_switch: true
+
+  # SAFETY: Maximum USD amount per single trade
+  # Orders exceeding this amount will be rejected
+  # Set to 0 to disable this limit (not recommended)
+  max_trade_usd: 500
+
+  # SAFETY: Maximum number of concurrent open positions
+  max_positions: 10
+
+  # SAFETY: Whitelist of allowed symbols
+  # Leave empty to allow all symbols
+  # Example: ["AAPL", "GOOGL", "MSFT", "TSLA"]
+  symbol_allowlist: []
+
+  # Default leverage for new positions
+  # Can be overridden per-trade with --leverage flag
+  default_leverage: 1
+
+# Output formatting preferences
+output:
+  # Default output format: "table" or "json"
+  # Can be overridden with --json flag
+  format: table
+
+  # Timezone for displaying timestamps
+  # Use "local" for system timezone or IANA format like "America/New_York"
+  timezone: local
