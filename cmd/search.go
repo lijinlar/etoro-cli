@@ -48,19 +48,19 @@ Examples:
 				return
 			}
 
-			headers := []string{"Symbol", "Name", "Type", "Exchange", "Trading"}
+			headers := []string{"Symbol", "Name", "Asset Class", "Exchange", "Tradable"}
 			rows := make([][]string, len(instruments))
 			for i, inst := range instruments {
-				trading := "No"
-				if inst.TradingEnabled {
-					trading = "Yes"
+				tradable := "No"
+				if inst.IsTradable {
+					tradable = "Yes"
 				}
 				rows[i] = []string{
 					inst.Symbol,
 					inst.Name,
-					inst.Type,
+					inst.AssetClass,
 					inst.Exchange,
-					trading,
+					tradable,
 				}
 			}
 			printer.PrintTable(headers, rows)

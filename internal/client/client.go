@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/lijinlar/etoro-cli/internal/config"
 )
 
@@ -55,10 +56,11 @@ func (c *Client) doRequest(method, path string, body interface{}) ([]byte, error
 	}
 
 	// Set authentication headers
-	req.Header.Set("Etoro-Public-Key", c.publicKey)
-	req.Header.Set("Etoro-User-Key", c.userKey)
+	req.Header.Set("X-Api-Key", c.publicKey)
+	req.Header.Set("X-User-Key", c.userKey)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
+	req.Header.Set("X-Request-Id", uuid.New().String())
 
 	if c.verbose {
 		fmt.Printf("[HTTP] %s %s\n", method, fullURL)
@@ -96,97 +98,124 @@ func (c *Client) doRequest(method, path string, body interface{}) ([]byte, error
 	return respBody, nil
 }
 
-// GetAccount retrieves account information
-func (c *Client) GetAccount() (*AccountInfo, error) {
-	body, err := c.doRequest("GET", "/accounts/me", nil)
+// GetPnL retrieves the full portfolio P&L from the real account
+func (c *Client) GetPnL() (*PnLResponse, error) {
+	body, err := c.doRequest("GET", "/trading/info/real/pnl", nil)
 	if err != nil {
 		return nil, err
 	}
 
-	var account AccountInfo
-	if err := json.Unmarshal(body, &account); err != nil {
-		return nil, fmt.Errorf("failed to parse account response: %w", err)
+	var pnl PnLResponse
+	if err := json.Unmarshal(body, &pnl); err != nil {
+		return nil, fmt.Errorf("failed to parse P&L response: %w", err)
 	}
 
-	return &account, nil
+	return &pnl, nil
 }
 
-// SearchInstruments searches for instruments by query
+// GetAccount retrieves account information (derived from PnL endpoint)
+func (c *Client) GetAccount() (*AccountInfo, error) {
+	pnl, err := c.GetPnL()
+	if err != nil {
+		return nil, err
+	}
+
+	return &AccountInfo{
+		Balance:      pnl.ClientPortfolio.Credit,
+		UnrealizedPL: pnl.ClientPortfolio.UnrealizedPnL,
+		Positions:    pnl.ClientPortfolio.Positions,
+		OpenOrders:   pnl.ClientPortfolio.OrdersForOpen,
+	}, nil
+}
+
+// searchResult is the paginated response wrapper from /market-data/search
+type searchResult struct {
+	Page      int          `json:"page"`
+	PageSize  int          `json:"pageSize"`
+	TotalItems int         `json:"totalItems"`
+	Items     []Instrument `json:"items"`
+}
+
+// SearchInstruments searches for instruments by query string
 func (c *Client) SearchInstruments(query string) ([]Instrument, error) {
-	path := "/instruments?query=" + url.QueryEscape(query)
+	path := "/market-data/search?phrase=" + url.QueryEscape(query)
 	body, err := c.doRequest("GET", path, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	var instruments []Instrument
-	if err := json.Unmarshal(body, &instruments); err != nil {
+	var result searchResult
+	if err := json.Unmarshal(body, &result); err != nil {
 		return nil, fmt.Errorf("failed to parse instruments response: %w", err)
 	}
 
-	return instruments, nil
+	return result.Items, nil
 }
 
-// GetInstrumentBySymbol finds an instrument by its symbol
+// GetInstrumentBySymbol finds an instrument by its exact symbol
 func (c *Client) GetInstrumentBySymbol(symbol string) (*Instrument, error) {
-	instruments, err := c.SearchInstruments(symbol)
+	path := "/market-data/search?internalSymbolFull=" + url.QueryEscape(strings.ToUpper(symbol))
+	body, err := c.doRequest("GET", path, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	symbol = strings.ToUpper(symbol)
-	for _, inst := range instruments {
-		if strings.ToUpper(inst.Symbol) == symbol {
-			return &inst, nil
-		}
+	var result searchResult
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse instrument response: %w", err)
 	}
 
-	return nil, fmt.Errorf("instrument not found: %s", symbol)
+	if len(result.Items) == 0 {
+		return nil, fmt.Errorf("instrument not found: %s", symbol)
+	}
+
+	return &result.Items[0], nil
 }
 
 // GetInstrumentRate gets live rates for an instrument
 func (c *Client) GetInstrumentRate(instrumentID int) (*InstrumentRate, error) {
-	path := fmt.Sprintf("/instruments/%d/rates", instrumentID)
+	path := fmt.Sprintf("/market-data/instruments/rates?instrumentIds=%d", instrumentID)
 	body, err := c.doRequest("GET", path, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	var rate InstrumentRate
-	if err := json.Unmarshal(body, &rate); err != nil {
+	var result struct {
+		Rates []InstrumentRate `json:"rates"`
+	}
+	if err := json.Unmarshal(body, &result); err != nil {
 		return nil, fmt.Errorf("failed to parse rate response: %w", err)
 	}
 
+	if len(result.Rates) == 0 {
+		return nil, fmt.Errorf("no rate data for instrument %d", instrumentID)
+	}
+
+	rate := result.Rates[0]
+	rate.Spread = rate.Ask - rate.Bid
 	return &rate, nil
 }
 
-// GetPositions retrieves open positions
+// GetPositions retrieves open positions (from PnL endpoint)
 func (c *Client) GetPositions() ([]Position, error) {
-	body, err := c.doRequest("GET", "/trading/positions", nil)
+	pnl, err := c.GetPnL()
 	if err != nil {
 		return nil, err
 	}
 
-	var positions []Position
-	if err := json.Unmarshal(body, &positions); err != nil {
-		return nil, fmt.Errorf("failed to parse positions response: %w", err)
-	}
-
-	return positions, nil
+	return pnl.ClientPortfolio.Positions, nil
 }
 
-// GetOrders retrieves pending orders
+// GetOrders retrieves pending orders (from PnL endpoint)
 func (c *Client) GetOrders() ([]Order, error) {
-	body, err := c.doRequest("GET", "/trading/orders", nil)
+	pnl, err := c.GetPnL()
 	if err != nil {
 		return nil, err
 	}
 
-	var orders []Order
-	if err := json.Unmarshal(body, &orders); err != nil {
-		return nil, fmt.Errorf("failed to parse orders response: %w", err)
-	}
-
+	// Combine all pending order types
+	orders := pnl.ClientPortfolio.Orders
+	orders = append(orders, pnl.ClientPortfolio.OrdersForOpen...)
 	return orders, nil
 }
 

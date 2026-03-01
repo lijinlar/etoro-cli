@@ -62,17 +62,15 @@ Examples:
 				printer.PrintJSON(rates)
 			}
 		} else {
-			headers := []string{"Symbol", "Bid", "Ask", "Spread", "Daily Change%", "High", "Low"}
+			headers := []string{"Symbol", "Bid", "Ask", "Spread", "Last Updated"}
 			rows := make([][]string, len(rates))
 			for i, r := range rates {
 				rows[i] = []string{
 					r.Symbol,
-					fmt.Sprintf("$%.2f", r.Bid),
-					fmt.Sprintf("$%.2f", r.Ask),
-					fmt.Sprintf("$%.4f", r.Spread),
-					output.FormatPercent(r.DailyChange),
-					fmt.Sprintf("$%.2f", r.DailyHigh),
-					fmt.Sprintf("$%.2f", r.DailyLow),
+					fmt.Sprintf("%.4f", r.Bid),
+					fmt.Sprintf("%.4f", r.Ask),
+					fmt.Sprintf("%.4f", r.Spread),
+					r.LastUpdated,
 				}
 			}
 			printer.PrintTable(headers, rows)

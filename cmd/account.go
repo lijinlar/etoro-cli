@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	"github.com/lijinlar/etoro-cli/internal/client"
@@ -38,13 +40,10 @@ Examples:
 		} else {
 			headers := []string{"Field", "Value"}
 			rows := [][]string{
-				{"Login ID", account.LoginID},
-				{"Balance", output.FormatMoney(account.Balance)},
-				{"Equity", output.FormatMoney(account.Equity)},
-				{"Margin", output.FormatMoney(account.Margin)},
-				{"Available Margin", output.FormatMoney(account.AvailableMargin)},
+				{"Balance (Credit)", output.FormatMoney(account.Balance)},
 				{"Unrealized P&L", output.FormatPL(account.UnrealizedPL)},
-				{"Realized P&L Today", output.FormatPL(account.RealizedPLToday)},
+				{"Open Positions", fmt.Sprintf("%d", len(account.Positions))},
+				{"Pending Orders", fmt.Sprintf("%d", len(account.OpenOrders))},
 			}
 			printer.PrintTable(headers, rows)
 		}

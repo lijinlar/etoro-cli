@@ -55,22 +55,16 @@ Examples:
 			symbolExposure[p.Symbol] += exposure
 		}
 
-		// Calculate margin utilization
-		var marginUtilization float64
-		if account.Margin > 0 && account.Equity > 0 {
-			marginUtilization = (account.Margin / account.Equity) * 100
-		}
-
-		// Determine warning level
+		// Calculate exposure vs balance
 		var warningLevel string
-		if marginUtilization > 90 {
+		if account.Balance > 0 && totalExposure > account.Balance*5 {
 			warningLevel = "CRITICAL"
-		} else if marginUtilization > 70 {
+		} else if account.Balance > 0 && totalExposure > account.Balance*2 {
 			warningLevel = "WARNING"
 		}
 
 		metrics := &client.RiskMetrics{
-			MarginUtilization: marginUtilization,
+			MarginUtilization: 0, // Not available from public API
 			TotalExposure:     totalExposure,
 			SymbolExposure:    symbolExposure,
 			WarningLevel:      warningLevel,
@@ -83,16 +77,16 @@ Examples:
 
 			// Warning banner
 			if warningLevel == "CRITICAL" {
-				fmt.Println("!!! CRITICAL: Margin utilization above 90% !!!")
+				fmt.Println("!!! CRITICAL: Exposure is >5x account balance !!!")
 			} else if warningLevel == "WARNING" {
-				fmt.Println("! WARNING: Margin utilization above 70% !")
+				fmt.Println("! WARNING: Exposure is >2x account balance !")
 			}
 			fmt.Println()
 
 			// Summary metrics
-			fmt.Printf("Margin Utilization: %.2f%%\n", marginUtilization)
 			fmt.Printf("Total Exposure:     %s\n", output.FormatMoney(totalExposure))
-			fmt.Printf("Available Margin:   %s\n", output.FormatMoney(account.AvailableMargin))
+			fmt.Printf("Account Balance:    %s\n", output.FormatMoney(account.Balance))
+			fmt.Printf("Unrealized P&L:     %s\n", output.FormatPL(account.UnrealizedPL))
 			fmt.Println()
 
 			// Per-symbol exposure

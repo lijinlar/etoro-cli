@@ -3,40 +3,55 @@ package client
 
 import "time"
 
+// PnLResponse is the top-level response from /trading/info/real/pnl
+type PnLResponse struct {
+	ClientPortfolio ClientPortfolio `json:"clientPortfolio"`
+}
+
+// ClientPortfolio contains the account's live portfolio data
+type ClientPortfolio struct {
+	Credit          float64    `json:"credit"`
+	BonusCredit     float64    `json:"bonusCredit"`
+	UnrealizedPnL   float64    `json:"unrealizedPnL"`
+	AccountCurrencyID int      `json:"accountCurrencyId"`
+	Positions       []Position `json:"positions"`
+	Orders          []Order    `json:"orders"`
+	OrdersForOpen   []Order    `json:"ordersForOpen"`
+	OrdersForClose  []Order    `json:"ordersForClose"`
+}
+
 // AccountInfo represents the account summary response
 type AccountInfo struct {
-	LoginID        string  `json:"loginId"`
-	Balance        float64 `json:"balance"`
-	Equity         float64 `json:"equity"`
-	Margin         float64 `json:"margin"`
-	AvailableMargin float64 `json:"availableMargin"`
-	UnrealizedPL   float64 `json:"unrealizedPL"`
-	RealizedPLToday float64 `json:"realizedPLToday"`
+	Balance        float64    `json:"balance"`
+	UnrealizedPL   float64    `json:"unrealizedPL"`
+	Positions      []Position `json:"positions"`
+	OpenOrders     []Order    `json:"openOrders"`
 }
 
-// Instrument represents a tradeable instrument
+// Instrument represents a tradeable instrument from the eToro API
 type Instrument struct {
-	InstrumentID   int     `json:"instrumentId"`
-	Symbol         string  `json:"symbol"`
-	Name           string  `json:"name"`
-	Type           string  `json:"type"`
-	Exchange       string  `json:"exchange"`
-	MinAmount      float64 `json:"minAmount"`
-	MaxLeverage    int     `json:"maxLeverage"`
-	TradingEnabled bool    `json:"tradingEnabled"`
+	InstrumentID   int     `json:"internalInstrumentId"`
+	Symbol         string  `json:"internalSymbolFull"`
+	Name           string  `json:"internalInstrumentDisplayName"`
+	AssetClass     string  `json:"internalAssetClassName"`
+	Exchange       string  `json:"internalExchangeName"`
+	CurrentRate    float64 `json:"currentRate"`
+	DailyChange    float64 `json:"dailyPriceChange"`
+	IsTradable     bool    `json:"isCurrentlyTradable"`
+	IsBuyEnabled   bool    `json:"isBuyEnabled"`
 }
 
-// InstrumentRate represents live price data for an instrument
+// InstrumentRate represents live price data for an instrument from the eToro API
 type InstrumentRate struct {
-	InstrumentID int     `json:"instrumentId"`
-	Symbol       string  `json:"symbol"`
+	InstrumentID int     `json:"instrumentID"`
+	Symbol       string  `json:"-"` // populated client-side after lookup
 	Bid          float64 `json:"bid"`
 	Ask          float64 `json:"ask"`
-	Spread       float64 `json:"spread"`
-	DailyChange  float64 `json:"dailyChange"`
-	DailyHigh    float64 `json:"dailyHigh"`
-	DailyLow     float64 `json:"dailyLow"`
-	LastUpdated  string  `json:"lastUpdated"`
+	Spread       float64 `json:"-"` // calculated
+	DailyChange  float64 `json:"-"` // not in rates endpoint
+	DailyHigh    float64 `json:"-"` // not in rates endpoint
+	DailyLow     float64 `json:"-"` // not in rates endpoint
+	LastUpdated  string  `json:"date"`
 }
 
 // Position represents an open trading position
@@ -158,18 +173,21 @@ type RiskMetrics struct {
 	WarningLevel      string             `json:"warningLevel,omitempty"`
 }
 
-// APIError represents an error response from the API
+// APIError represents an error response from the eToro API
 type APIError struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
-	Details string `json:"details,omitempty"`
+	Code         int    `json:"code"`
+	ErrorCode    string `json:"errorCode"`
+	ErrorMessage string `json:"errorMessage"`
 }
 
 func (e APIError) Error() string {
-	if e.Details != "" {
-		return e.Message + ": " + e.Details
+	if e.ErrorMessage != "" {
+		if e.ErrorCode != "" {
+			return e.ErrorCode + ": " + e.ErrorMessage
+		}
+		return e.ErrorMessage
 	}
-	return e.Message
+	return "unknown API error"
 }
 
 // DryRunResult represents the result of a dry-run operation
