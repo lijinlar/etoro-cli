@@ -24,7 +24,35 @@
 
 ## Installation
 
-### Using Go Install (Recommended)
+Works on **Linux**, **macOS**, and **Windows**.
+
+### Pre-built Binaries (Fastest)
+
+Download the latest release for your platform from the [Releases page](https://github.com/lijinlar/etoro-cli/releases).
+
+**Linux / macOS:**
+```bash
+# Linux (amd64)
+curl -L https://github.com/lijinlar/etoro-cli/releases/latest/download/etoro-cli-linux-amd64.tar.gz | tar xz
+sudo mv etoro-cli /usr/local/bin/
+
+# macOS (Apple Silicon)
+curl -L https://github.com/lijinlar/etoro-cli/releases/latest/download/etoro-cli-darwin-arm64.tar.gz | tar xz
+sudo mv etoro-cli /usr/local/bin/
+
+# macOS (Intel)
+curl -L https://github.com/lijinlar/etoro-cli/releases/latest/download/etoro-cli-darwin-amd64.tar.gz | tar xz
+sudo mv etoro-cli /usr/local/bin/
+```
+
+**Windows (PowerShell):**
+```powershell
+# Download and extract
+Invoke-WebRequest -Uri "https://github.com/lijinlar/etoro-cli/releases/latest/download/etoro-cli-windows-amd64.zip" -OutFile etoro-cli.zip
+Expand-Archive etoro-cli.zip -DestinationPath .
+```
+
+### Using Go Install
 
 ```bash
 go install github.com/lijinlar/etoro-cli@latest
@@ -35,10 +63,13 @@ go install github.com/lijinlar/etoro-cli@latest
 ```bash
 git clone https://github.com/lijinlar/etoro-cli.git
 cd etoro-cli
-make build
-```
 
-The binary will be at `./bin/etoro`.
+# Current platform
+make build
+
+# All platforms (outputs to ./dist/)
+make build-all
+```
 
 ---
 
